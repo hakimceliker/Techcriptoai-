@@ -9,5 +9,10 @@ Data older than 2.5 seconds or malformed/future-dated input => NO_TRADE. Conflic
 
 Normalize live feed data to MarketInput and call decide(input). Backtest and paper-trade before production use.
 
+## Binance USDⓈ-M depth synchronization core
+`BinanceUsdmDepthBookSynchronizer` is a deterministic, transport-free core. It buffers decoded depth events, installs a REST depth snapshot, requires the first applied event to overlap that snapshot, and checks each later `pu` against the previous `u`. The current book is returned only while synchronized. Malformed events, symbol mismatches, gaps, empty sides, or buffer/level limits clear the book and require a fresh synchronization cycle. Price and quantity strings are retained exactly enough for decimal sorting without floating-point conversion.
+
+This module does not open a WebSocket, fetch snapshots, reconnect, or place/cancel orders. A production adapter must own those operations, call `reset()` on a new stream epoch, buffer updates before calling `installSnapshot()`, and keep the execution path interlocked while status is not `synchronized`. Decimal values are normalized as strings and sorted with integer arithmetic. See the [Binance USDⓈ-M local order book procedure](https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/How-to-manage-a-local-order-book-correctly) and [REST depth endpoint](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/market-data).
+
 ## Tests
-Requires Node.js 24.12 or newer. Run `npm test` locally. GitHub Actions runs the deterministic engine suite on pull requests, pushes to main, and daily at 08:00 Türkiye time. Each run keeps a TAP test log for 90 days.
+Requires Node.js 24.12 or newer. Run `npm test` locally. GitHub Actions runs the deterministic engine and depth-sync suites on pull requests, pushes to main, and daily at 08:00 Türkiye time. Each run keeps a TAP test log for 90 days.

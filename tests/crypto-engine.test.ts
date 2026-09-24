@@ -56,16 +56,29 @@ test("future timestamps fail closed", () => {
   assert.equal(result.fresh, false);
 });
 
-test("non-finite and impossible market inputs fail closed", () => {
-  for (const invalid of [
+test("non-finite, impossible, and malformed inputs fail closed without throwing", () => {
+  const invalid: unknown[] = [
     { ...base, price: Number.NaN },
     { ...base, price: 0 },
+    { ...base, emaFast: 0 },
     { ...base, rsi: 101 },
     { ...base, bidDepth: -1 },
     { ...base, symbol: " " },
-  ]) {
-    const result = decide(invalid, now);
+    null,
+    {},
+    { ...base, symbol: null },
+    42,
+  ];
+  for (const value of invalid) {
+    const result = decide(value, now);
     assert.equal(result.side, "NO_TRADE");
     assert.equal(result.fresh, false);
   }
+});
+
+test("overflowing or non-positive risk levels return NO_TRADE", () => {
+  const overflow = decide({ ...base, price: Number.MAX_VALUE, emaFast: Number.MAX_VALUE }, now);
+  assert.equal(overflow.side, "NO_TRADE");
+  assert.equal(overflow.entry, undefined);
+  assert.equal(overflow.stop, undefined);
 });
