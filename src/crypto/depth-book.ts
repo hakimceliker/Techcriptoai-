@@ -33,6 +33,7 @@ export type DepthSyncState = {
 
 export type SynchronizedDepthBook = {
   symbol: string;
+  coverage: "snapshot-limited";
   lastUpdateId: number;
   bids: DepthLevel[];
   asks: DepthLevel[];
@@ -215,6 +216,7 @@ export class BinanceUsdmDepthBookSynchronizer {
 
     return {
       symbol: this.symbol,
+      coverage: "snapshot-limited",
       lastUpdateId: this.lastUpdateId,
       bids,
       asks,

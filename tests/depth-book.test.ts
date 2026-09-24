@@ -31,6 +31,7 @@ test("buffers updates and exposes no book until a snapshot overlap is verified",
   assert.equal(state.status, "synchronized");
   const book = sync.getBook();
   assert.ok(book);
+  assert.equal(book.coverage, "snapshot-limited");
   assert.equal(book.lastUpdateId, 101);
   assert.deepEqual(book.bids, [["100", "4"], ["99.5", "1"]]);
   assert.deepEqual(book.asks, [["102", "5"]]);
