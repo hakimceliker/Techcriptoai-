@@ -9,3 +9,18 @@ export {
   type DepthSyncStatus,
   type SynchronizedDepthBook,
 } from "./depth-book.ts";
+export {
+  BinanceUsdmMarketDataAdapter,
+  type BinanceUsdmAdapterStatus,
+  type BinanceUsdmFetchResponse,
+  type BinanceUsdmMarketDataOptions,
+  type BinanceUsdmMarketDataState,
+  type BinanceUsdmWebSocket,
+} from "./binance-usdm-market-data.ts";
+export {
+  ExecutionInterlock,
+  type ExecutionAttempt,
+  type ExecutionAuthorization,
+  type ExecutionInterlockMarketState,
+  type ExecutionInterlockOptions,
+} from "./execution-interlock.ts";
