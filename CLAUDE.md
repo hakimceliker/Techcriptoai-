@@ -2,6 +2,10 @@
 
 Bu repository TechCriptoAI'nin sinyal motoru ve güvenli veri/işlem sınırıdır. Bundan sonra bütün geliştirmeleri aşağıdaki kurala göre yap:
 
+## Senatech proje kanunu
+
+Repository kökündeki [SENATECH-PROJECT-DEVELOPMENT-LAW.md](./SENATECH-PROJECT-DEVELOPMENT-LAW.md) tüm projeler için bağlayıcıdır. Bu dosya ile bu talimat arasında çelişki olursa daha güvenli ve daha kısıtlayıcı kural uygulanır.
+
 ## Merkez mimari
 
 ```
@@ -48,3 +52,7 @@ Her commit veya PR sonunda Türkçe rapor bırak:
 - Sonraki tek adım
 
 Kanıt yoksa "tamamlandı" değil, "kanıt bekliyor" yaz. Kullanıcıdan tekrar onay istemeden geri alınabilir teknik düzeltmeleri uygula; güvenlik, kimlik, para veya geri döndürülemez işlem gerektiren noktada dur ve durumu raporla.
+
+## Kanun uygulama emri
+
+Her çalışma başlangıcında Senatech kanununu oku. Bu repository dışındaki Senatech projelerinde de aynı mimari, kalite kapısı, güvenlik ve rapor standardını uygula. Yeni projeyi bu standarda bağlamadan kodlamaya başlama.
