@@ -42,6 +42,7 @@ test("execution starts disarmed and does not call the supplied executor", async 
 
 test("armed execution requires matching, synchronized, fresh market data and valid risk levels", async () => {
   const gate = new ExecutionInterlock();
+  gate.clearSystemHalt();
   gate.arm();
   let executions = 0;
   const action = () => {
@@ -93,6 +94,7 @@ test("armed execution requires matching, synchronized, fresh market data and val
 
 test("NO_TRADE, stale data, invalid timestamps, and malformed input fail closed", async () => {
   const gate = new ExecutionInterlock();
+  gate.clearSystemHalt();
   gate.arm();
   const noTrade = gate.authorize("BTCUSDT", { ...decision, side: "NO_TRADE" }, marketData, 10_000, 10_100);
   assert.equal(noTrade.allowed, false);
@@ -125,3 +127,6 @@ test("NO_TRADE, stale data, invalid timestamps, and malformed input fail closed"
   );
   assert.equal(malformed.allowed, false);
 });
+
+
+test("SYSTEM_HALTED is explicit and blocks even when armed", () => { const gate = new ExecutionInterlock(); gate.arm(); const blocked = gate.authorize("BTCUSDT", decision, marketData,10000,10100); assert.equal(blocked.allowed,false); assert.ok(blocked.reasons.includes("SYSTEM_HALTED")); gate.clearSystemHalt(); assert.equal(gate.authorize("BTCUSDT",decision,marketData,10000,10100).allowed,true); gate.haltSystem(); assert.equal(gate.isArmed(),false); });
