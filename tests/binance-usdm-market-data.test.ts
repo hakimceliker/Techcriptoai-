@@ -237,8 +237,23 @@ test("REST failures keep depth unavailable and enter reconnect backoff", async (
 
   assert.equal(adapter.getBook(), undefined);
   assert.equal(adapter.getState().status, "reconnecting");
-  assert.match(adapter.getState().reason ?? "", /HTTP 503/);
+  assert.match(adapter.getState().reason ?? "", /upstream 5xx.*HTTP 503/);
+  assert.equal(adapter.getState().rest5xxCount, 1);
+  assert.equal(adapter.getState().lastRestStatus, 503);
   clock.advance(100);
   assert.equal(sockets.length, 2);
   adapter.stop();
+});
+
+
+test("rate limits are classified and counted without exposing a book", async () => {
+  const clock = makeClock(); const sockets: FakeSocket[] = [];
+  const adapter = new BinanceUsdmMarketDataAdapter("BTCUSDT", { websocketFactory: () => { const s = new FakeSocket(); sockets.push(s); return s; }, fetchImpl: async () => ({ ok:false, status:429, json:async()=>({}) }), now:clock.now, setTimeoutImpl:clock.setTimeoutImpl, clearTimeoutImpl:clock.clearTimeoutImpl, reconnectBaseDelayMs:100, reconnectMaxDelayMs:400 });
+  adapter.start(); sockets[0].open(); await flushPromises(); assert.equal(adapter.getBook(), undefined); assert.match(adapter.getState().reason ?? "", /rate limited.*HTTP 429/); assert.equal(adapter.getState().rest429Count,1); adapter.stop();
+});
+
+test("sequence gaps increment the safety counter", async () => {
+  const clock = makeClock(); const sockets: FakeSocket[] = []; const snapshots: Array<(value: BinanceUsdmFetchResponse) => void> = [];
+  const adapter = new BinanceUsdmMarketDataAdapter("BTCUSDT", { websocketFactory: () => { const s = new FakeSocket(); sockets.push(s); return s; }, fetchImpl: async () => await new Promise<BinanceUsdmFetchResponse>(resolve => snapshots.push(resolve)), now:clock.now, setTimeoutImpl:clock.setTimeoutImpl, clearTimeoutImpl:clock.clearTimeoutImpl, reconnectBaseDelayMs:100, reconnectMaxDelayMs:400 });
+  adapter.start(); sockets[0].open(); sockets[0].message(bridge); snapshots[0](response(snapshot)); await flushPromises(); sockets[0].message({ ...bridge, U:102, u:103, pu:90 }); assert.equal(adapter.getState().sequenceGapCount,1); adapter.stop();
 });

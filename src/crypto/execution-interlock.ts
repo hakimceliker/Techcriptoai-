@@ -19,6 +19,8 @@ export type ExecutionInterlockOptions = {
   minimumConfidence?: number;
   maximumDecisionAgeMs?: number;
   maximumMarketDataAgeMs?: number;
+  /** Keep execution blocked until an explicit operational recovery clears the halt. */
+  systemHalted?: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -48,11 +50,13 @@ export class ExecutionInterlock {
   private readonly minimumConfidence: number;
   private readonly maximumDecisionAgeMs: number;
   private readonly maximumMarketDataAgeMs: number;
+  private systemHalted: boolean;
 
   constructor(options: ExecutionInterlockOptions = {}) {
     this.minimumConfidence = options.minimumConfidence ?? 68;
     this.maximumDecisionAgeMs = options.maximumDecisionAgeMs ?? 2500;
     this.maximumMarketDataAgeMs = options.maximumMarketDataAgeMs ?? 2500;
+    this.systemHalted = options.systemHalted ?? true;
     if (!Number.isFinite(this.minimumConfidence) || this.minimumConfidence < 0 || this.minimumConfidence > 100) {
       throw new RangeError("minimumConfidence must be between 0 and 100");
     }
@@ -78,6 +82,10 @@ export class ExecutionInterlock {
     return this.armed;
   }
 
+  clearSystemHalt(): void { this.systemHalted = false; }
+  haltSystem(): void { this.systemHalted = true; this.armed = false; }
+  isSystemHalted(): boolean { return this.systemHalted; }
+
   authorize(
     symbol: string,
     decision: unknown,
@@ -86,6 +94,7 @@ export class ExecutionInterlock {
     nowMs = Date.now(),
   ): ExecutionAuthorization {
     const reasons: string[] = [];
+    if (this.systemHalted) reasons.push("SYSTEM_HALTED");
     if (!this.armed) reasons.push("Execution interlock is disarmed");
     if (typeof symbol !== "string" || symbol.trim().length === 0) reasons.push("Execution symbol is invalid");
 
