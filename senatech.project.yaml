@@ -1,0 +1,19 @@
+project: techcriptoai
+control_plane: senatech
+risk_level: critical
+execution:
+  live_orders: false
+  live_order_socket: false
+  paper_only: true
+models:
+  primary: local-qwen
+  fallback: cloud-policy-controlled
+capabilities:
+  - market-data-read
+  - signal-analysis
+  - incident-diagnosis
+  - recovery-retry
+  - evidence-reporting
+approvals:
+  production_write: human
+  financial_action: disabled
