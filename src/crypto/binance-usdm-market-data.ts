@@ -19,6 +19,12 @@ export type BinanceUsdmMarketDataState = {
   lastReceivedAtMs?: number;
   lastUpdateId?: number;
   reason?: string;
+  lastRestStatus?: number;
+  rest429Count: number;
+  rest5xxCount: number;
+  sequenceGapCount: number;
+  reconnectCount: number;
+  lastRecoveryAtMs?: number;
 };
 
 export type BinanceUsdmWebSocket = {
@@ -132,6 +138,12 @@ export class BinanceUsdmMarketDataAdapter {
   private staleTimer: Timer | undefined;
   private reconnectTimer: Timer | undefined;
   private snapshotController: AbortController | undefined;
+  private rest429Count = 0;
+  private rest5xxCount = 0;
+  private sequenceGapCount = 0;
+  private reconnectCount = 0;
+  private lastRestStatus: number | undefined;
+  private lastRecoveryAtMs: number | undefined;
   private currentState: BinanceUsdmMarketDataState;
 
   constructor(symbol: string, options: BinanceUsdmMarketDataOptions = {}) {
@@ -186,6 +198,10 @@ export class BinanceUsdmMarketDataAdapter {
       status: "stopped",
       transportConnected: false,
       reconnectAttempt: 0,
+      rest429Count: 0,
+      rest5xxCount: 0,
+      sequenceGapCount: 0,
+      reconnectCount: 0,
     };
   }
 
@@ -293,6 +309,7 @@ export class BinanceUsdmMarketDataAdapter {
 
     const syncState = this.synchronizer.ingest(event, this.now());
     if (syncState.status === "resync-required") {
+      if (/sequence gap/i.test(syncState.reason ?? "")) this.sequenceGapCount += 1;
       this.failAndReconnect(syncState.reason ?? "Depth synchronization requires a fresh snapshot", socket, connectionId);
       return;
     }
@@ -300,6 +317,7 @@ export class BinanceUsdmMarketDataAdapter {
     const book = this.synchronizer.getBook();
     if (book) {
       this.reconnectAttempt = 0;
+      this.lastRecoveryAtMs = this.now();
       this.publish("synchronized");
       this.scheduleStaleCheck(socket, connectionId, book.lastReceivedAtMs);
       try {
@@ -320,7 +338,13 @@ export class BinanceUsdmMarketDataAdapter {
     const url = snapshotUrl(this.options.restBaseUrl, this.symbol, this.options.snapshotLimit);
     try {
       const response = await (this.options.fetchImpl ?? makeFetch)(url, { signal: controller.signal });
-      if (!response.ok) throw new Error("Binance depth endpoint returned HTTP " + response.status);
+      this.lastRestStatus = response.status;
+      if (!response.ok) {
+        if (response.status === 418 || response.status === 429) this.rest429Count += 1;
+        if (response.status >= 500 && response.status <= 599) this.rest5xxCount += 1;
+        const category = response.status === 418 || response.status === 429 ? "rate limited" : response.status >= 500 && response.status <= 599 ? "upstream 5xx" : "HTTP error";
+        throw new Error("Binance depth endpoint " + category + " (HTTP " + response.status + ")");
+      }
       const snapshot = await response.json();
       if (!this.isCurrent(socket, connectionId)) return;
 
@@ -395,6 +419,7 @@ export class BinanceUsdmMarketDataAdapter {
     }
 
     this.reconnectAttempt += 1;
+    this.reconnectCount += 1;
     this.publish("reconnecting", reason);
     const exponent = Math.min(this.reconnectAttempt - 1, 20);
     const delay = Math.min(
@@ -416,6 +441,12 @@ export class BinanceUsdmMarketDataAdapter {
       reconnectAttempt: this.reconnectAttempt,
       ...(syncState.lastReceivedAtMs !== undefined ? { lastReceivedAtMs: syncState.lastReceivedAtMs } : {}),
       ...(syncState.lastUpdateId !== undefined ? { lastUpdateId: syncState.lastUpdateId } : {}),
+      ...(this.lastRestStatus !== undefined ? { lastRestStatus: this.lastRestStatus } : {}),
+      rest429Count: this.rest429Count,
+      rest5xxCount: this.rest5xxCount,
+      sequenceGapCount: this.sequenceGapCount,
+      reconnectCount: this.reconnectCount,
+      ...(this.lastRecoveryAtMs !== undefined ? { lastRecoveryAtMs: this.lastRecoveryAtMs } : {}),
       ...(reason ? { reason } : syncState.reason ? { reason: syncState.reason } : {}),
     };
     try {
